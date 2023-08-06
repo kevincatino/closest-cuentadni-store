@@ -16,9 +16,7 @@ type (
 		long float64
 	}
 
-
-
-	Store struct {
+	Place struct {
 		Name        string `json:"empresa"`
 		Coordinates Coordinates
 		Address     string `json:"direccion"`
@@ -27,33 +25,34 @@ type (
 
 	StoreIterator interface {
 		HasNext() bool
-		GetNext() (*Store, error)
+		GetNext() (*Place, error)
+		ToArray() []Place
 	}
 
 	fetchStoreIterator struct {
 		fetchUrl  string
 		localidad string
 		index     int
-		maxCount int
-		stores    []Store
+		maxCount  int
+		stores    []Place
 	}
 
 	Result struct {
-		Stores []Store `json:"data"`
-		MaxCount int `json:"recordsFiltered"`
+		Stores   []Place `json:"data"`
+		MaxCount int     `json:"recordsFiltered"`
 	}
 )
 
-func (c Coordinates) Lat() float64{
+func (c Coordinates) Lat() float64 {
 	return c.lat
 }
 
-func (c Coordinates) Long() float64{
+func (c Coordinates) Long() float64 {
 	return c.long
 }
 
-func (c Coordinates) GetDistance(other Coordinates) float64{
-	return math.Sqrt(math.Pow(c.Lat()-other.Lat(),2) + math.Pow(c.Long()-other.Long(),2))
+func (c Coordinates) GetDistance(other Coordinates) float64 {
+	return math.Sqrt(math.Pow(c.Lat()-other.Lat(), 2) + math.Pow(c.Long()-other.Long(), 2))
 }
 
 func (it fetchStoreIterator) GetFetchBody() string {
@@ -61,7 +60,18 @@ func (it fetchStoreIterator) GetFetchBody() string {
 	return fmt.Sprintf(body, it.localidad, it.index)
 }
 
-func (s *Store) UnmarshalJSON(data []byte) error {
+func (it fetchStoreIterator) ToArray() []Place {
+	for it.maxCount > len(it.stores) {
+		err := it.fetchNextBatch()
+		if err != nil {
+			fmt.Println(err.Error())
+			return it.stores
+		}
+	}
+	return it.stores
+}
+
+func (s *Place) UnmarshalJSON(data []byte) error {
 	// Define a temporary struct to hold the flat JSON data
 	type FlatStore struct {
 		Name      string  `json:"empresa"`
@@ -94,7 +104,7 @@ func (it fetchStoreIterator) HasNext() bool {
 }
 
 func (it *fetchStoreIterator) fetchNextBatch() error {
-response, err := http.Post(it.fetchUrl,"application/json", strings.NewReader(it.GetFetchBody()))
+	response, err := http.Post(it.fetchUrl, "application/json", strings.NewReader(it.GetFetchBody()))
 
 	if err != nil {
 		return err
@@ -122,13 +132,13 @@ response, err := http.Post(it.fetchUrl,"application/json", strings.NewReader(it.
 	return nil
 }
 
-func (it *fetchStoreIterator) GetNext() (*Store, error) {
+func (it *fetchStoreIterator) GetNext() (*Place, error) {
 
 	if !it.HasNext() {
 		return nil, errors.New("no next value")
 	}
 
-	if  it.index < len(it.stores) {
+	if it.index < len(it.stores) {
 		store := &it.stores[it.index]
 		it.index++
 		return store, nil
@@ -140,7 +150,7 @@ func (it *fetchStoreIterator) GetNext() (*Store, error) {
 		return nil, err
 	}
 
-if it.index < len(it.stores) {
+	if it.index < len(it.stores) {
 		store := &it.stores[it.index]
 		it.index++
 		return store, nil
@@ -148,11 +158,10 @@ if it.index < len(it.stores) {
 		return nil, errors.New("unknown error")
 	}
 
-	
 }
 
-func GetStoresIterator(fetchUrl string,  localidad string) StoreIterator {
-	it := fetchStoreIterator{fetchUrl: fetchUrl,localidad: localidad}
+func GetStoresIterator(fetchUrl string, localidad string) StoreIterator {
+	it := fetchStoreIterator{fetchUrl: fetchUrl, localidad: localidad}
 	it.fetchNextBatch()
 	return &it
 }
