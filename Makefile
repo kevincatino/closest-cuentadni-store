@@ -1,2 +1,2 @@
 run:
-	go run cmd/closest-cuentadni-store/main.go
+	go run main.go

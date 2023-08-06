@@ -1,3 +1,5 @@
-module github.com/kevincatino/closest-cuentadni-store
+module closest-cuentadni-store
 
 go 1.20
+
+require github.com/joho/godotenv v1.5.1 // indirect
